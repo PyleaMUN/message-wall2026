@@ -1,1 +1,188 @@
+#### File: index.html
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Message Wall</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --nav-bg: #f8f8f0;
+      --teal: #006d7a;
+      --gold: #c59d12;
+      --cream: #f8f5ec;
+    }
+    body {
+      margin: 0;
+      padding-top: 56px;
+      font-family: 'Lato', sans-serif;
+      background-color: var(--cream);
+      color: #333;
+    }
+    .navbar-custom {
+      background-color: var(--nav-bg);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .logo img {
+      max-width: 200px;
+      height: auto;
+    }
+    .message {
+      border-bottom: 1px solid #ddd;
+      padding: 0.75rem 0;
+    }
+    .message .author {
+      font-weight: bold;
+    }
+    .message .time {
+      color: #888;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-light navbar-custom fixed-top">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center" href="/">
+        <img src="pyleaMUNfinallogo1.png" alt="Logo" style="height:40px;" class="me-2">
+        MessageWall
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link active" href="/">Wall</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <!-- Logo -->
+    <div class="logo text-center mb-4">
+      <img src="pyleaMUNfinallogo.png" alt="Logo">
+    </div>
+
+    <!-- Post Form -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <form id="msgForm">
+          <div class="mb-3">
+            <input type="text" name="author" class="form-control" placeholder="Your name" required />
+          </div>
+          <div class="mb-3">
+            <textarea name="message" class="form-control" placeholder="Your message..." rows="3" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100" style="background-color: var(--teal); border-color: var(--gold)">Post Message</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="wall">
+      <!-- Messages are injected here -->
+    </div>
+  </div>
+
+  <!-- Bootstrap JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const form = document.getElementById('msgForm');
+    const wall = document.getElementById('wall');
+
+    async function fetchMessages() {
+      const res = await fetch('/messages');
+      const msgs = await res.json();
+      wall.innerHTML = msgs.map(m => 
+        `<div class="message">
+           <div class="author">${m.author}</div>
+           <div class="time">${new Date(m.time).toLocaleString()}</div>
+           <div class="text">${m.text}</div>
+         </div>`
+      ).join('');
+    }
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const data = new FormData(form);
+      await fetch('/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          author: data.get('author'),
+          text: data.get('message')
+        })
+      });
+      form.reset();
+      fetchMessages();
+    });
+
+    fetchMessages();
+  </script>
+</body>
+```
+
+#### File: server.js
+```js
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+const app = express();
+const db = new sqlite3.Database('messages.db');
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    author TEXT NOT NULL,
+    text TEXT NOT NULL,
+    time INTEGER NOT NULL
+  )
+`);
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '.')));
+
+app.post('/messages', (req, res) => {
+  const { author, text } = req.body;
+  const time = Date.now();
+  db.run(`INSERT INTO messages (author, text, time) VALUES (?, ?, ?)`, [author, text, time], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({ id: this.lastID });
+  });
+});
+
+app.get('/messages', (req, res) => {
+  db.all(`SELECT author, text, time FROM messages ORDER BY time DESC`, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+```
+
+#### File: package.json
+```json
+{
+  "name": "message-wall",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.2"
+  }
+}
+```
 
