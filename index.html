@@ -32,35 +32,25 @@
   </style>
 </head>
 <body>
-  <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-light navbar-custom fixed-top">
     <div class="container">
       <a class="navbar-brand d-flex align-items-center" href="/">
         <img src="pyleaMUNfinallogo1.png" alt="Logo" style="height:40px;" class="me-2">
         MessageWall
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-        <span class="navbar-toggler-icon"></span>
-      </button>
     </div>
   </nav>
 
   <div class="container mt-4">
-    <!-- Logo -->
     <div class="text-center mb-4">
       <img src="pyleaMUNfinallogo.png" alt="Logo" style="max-width:200px;">
     </div>
 
-    <!-- Post Form -->
     <div class="card mb-4">
       <div class="card-body">
         <form id="msgForm">
-          <div class="mb-3">
-            <input type="text" id="author" class="form-control" placeholder="Your name" required/>
-          </div>
-          <div class="mb-3">
-            <textarea id="text" class="form-control" placeholder="Your message..." rows="3" required></textarea>
-          </div>
+          <input type="text" id="author" class="form-control mb-3" placeholder="Your name" required/>
+          <textarea id="text" class="form-control mb-3" placeholder="Your message..." rows="3" required></textarea>
           <button type="submit" class="btn w-100" style="background-color: var(--teal); color:#fff; border-color:var(--gold)">
             Post Message
           </button>
@@ -68,7 +58,6 @@
       </div>
     </div>
 
-    <!-- Messages -->
     <div id="wall"></div>
   </div>
 
@@ -78,13 +67,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script>
-    // TODO: Replace with your Firebase project config
-   // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
+    // 1. Paste your actual config object here:
 const firebaseConfig = {
   apiKey: "AIzaSyCVyyhYuqay-Zd4DPyEJ4OVw51FCGr-wJo",
   authDomain: "message-wall2026.firebaseapp.com",
@@ -95,36 +78,55 @@ const firebaseConfig = {
   appId: "1:261216285703:web:2099c5d7854e05259966a2"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+    // 2. Initialize Firebase
+    console.log("Initializing Firebase…");
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database().ref('messages');
 
-    const wall = document.getElementById('wall');
+    // 3. Grab DOM elements
     const form = document.getElementById('msgForm');
+    const wall = document.getElementById('wall');
 
-    // Listen for new messages & render
-    db.orderByChild('time').on('value', snapshot => {
-      const msgs = snapshot.val() || {};
-      const list = Object.values(msgs).sort((a,b)=>b.time - a.time);
-      wall.innerHTML = list.map(m=>`
+    // 4. Fetch & render messages
+    function render(messages) {
+      wall.innerHTML = messages.map(m => `
         <div class="message">
           <div class="author">${m.author}</div>
           <div class="time">${new Date(m.time).toLocaleString()}</div>
           <div class="text">${m.text}</div>
         </div>
       `).join('');
-    });
+    }
 
-    // Post new message
+    function fetchMessages() {
+      console.log("Listening for new messages…");
+      db.orderByChild('time').on('value', snapshot => {
+        const data = snapshot.val();
+        console.log("Data received:", data);
+        const list = data
+          ? Object.values(data).sort((a,b) => b.time - a.time)
+          : [];
+        render(list);
+      }, err => {
+        console.error("Error reading messages:", err);
+      });
+    }
+
+    // 5. Handle form submission
     form.addEventListener('submit', e => {
       e.preventDefault();
       const author = document.getElementById('author').value.trim();
-      const text   = document.getElementById('text').value.trim();
+      const text = document.getElementById('text').value.trim();
+      console.log("Posting:", { author, text });
       if (!author || !text) return;
-      db.push({ author, text, time: Date.now() });
+      db.push({ author, text, time: Date.now() })
+        .then(() => console.log("Post successful"))
+        .catch(err => console.error("Post error:", err));
       form.reset();
     });
+
+    // 6. Kick it off
+    fetchMessages();
   </script>
 </body>
 </html>
